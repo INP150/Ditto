@@ -3,8 +3,9 @@ import discord
 from discord.ext import commands
 from discord import app_commands
 from dotenv import load_dotenv
-import asyncio
-from collections import deque
+
+from const import EMOJI_MAP
+from message_helpers import gather_message_parts
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -21,55 +22,24 @@ async def on_ready():
 
 @bot.event
 async def on_message(msg):
-    # ignore messages from bots (including self)
-    if msg.author.bot:
+    if msg.author.bot: # ignore messages from bots (including self) 
         return
 
-    # Gather message text + embed text (title, description, fields, footer, author)
-    parts = [msg.content or ""]
-    for embed in msg.embeds:
-        if getattr(embed, "title", None):
-            parts.append(embed.title)
-        if getattr(embed, "description", None):
-            parts.append(embed.description)
-        footer = getattr(embed, "footer", None)
-        if footer and getattr(footer, "text", None):
-            parts.append(footer.text)
-        author = getattr(embed, "author", None)
-        if author and getattr(author, "name", None):
-            parts.append(author.name)
-        for f in getattr(embed, "fields", []) or []:
-            if getattr(f, "name", None):
-                parts.append(f.name)
-            if getattr(f, "value", None):
-                parts.append(f.value)
+    parts = gather_message_parts(msg)
 
     combined = " ".join([p for p in parts if p])
 
-    # map shortcodes and unicode variants to the emoji to react with
-    triggers = {
-        ":+1:": "👍", ":thumbsup:": "👍", "👍": "👍",
-        ":-1:": "👎", ":thumbsdown:": "👎", "👎": "👎",
-    }
+    triggers = EMOJI_MAP
 
     # collect reactions to add (avoid duplicates)
-    to_add = []
+    pending_reactions = []
     for key, emoji in triggers.items():
-        if key in combined and emoji not in to_add:
-            to_add.append(emoji)
+        if key in combined and emoji not in pending_reactions:
+            pending_reactions.append(emoji)
 
-    if to_add:
+    if pending_reactions:
         print("Reaction trigger(s) detected in message/embed:", combined)
-        for emoji in to_add:
-            try:
-                await msg.add_reaction(emoji)
-            except discord.Forbidden:
-                print("Cannot add reactions: missing Add Reactions permission.")
-            except discord.HTTPException as e:
-                print("Failed to add reaction:", e)
-            except Exception as e:
-                print("Unexpected error while adding reactions:", e)
-
+        add_reactions_to_message(msg, pending_reactions)
     await bot.process_commands(msg)
 
 @bot.tree.command(name="ping", description="Check the bot's latency")
@@ -81,4 +51,19 @@ async def ping(interaction: discord.Interaction):
 async def greet(interaction: discord.Interaction):
     await interaction.response.send_message(f"Hello, {interaction.user.mention}!")
 
-bot.run(TOKEN)
+
+def add_reactions_to_message(msg, emojis):
+    """Add a list of emojis as reactions to a message."""
+    for emoji in emojis:
+        try:
+            msg.add_reaction(emoji)
+        except discord.Forbidden:
+            print("Cannot add reactions: missing Add Reactions permission.")
+        except discord.HTTPException as e:
+            print("Failed to add reaction:", e)
+        except Exception as e:
+            print("Unexpected error while adding reactions:", e)
+
+
+if __name__ == "__main__":
+    bot.run(TOKEN)
