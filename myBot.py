@@ -11,7 +11,7 @@ from keep_alive import keep_alive
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
 
-keep_alive()
+#keep_alive()
 
 intents = discord.Intents.default()
 intents.message_content = True
