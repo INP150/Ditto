@@ -7,3 +7,5 @@ start
 stop
 restart
 update
+
+log/*
