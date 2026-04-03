@@ -43,7 +43,7 @@ async def on_message(msg) -> None:
 
     if pending_reactions:
         print("Reaction trigger(s) detected in message/embed:", combined)
-        add_reactions_to_message(msg, pending_reactions)
+        await add_reactions_to_message(msg, pending_reactions)
     await bot.process_commands(msg)
 
 
@@ -72,11 +72,11 @@ def get_latest_commit_hash() -> str:
     return subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip()
 
 
-def add_reactions_to_message(msg, emojis) -> None:
+async def add_reactions_to_message(msg, emojis) -> None:
     """Add a list of emojis as reactions to a message."""
     for emoji in emojis:
         try:
-            msg.add_reaction(emoji)
+            await msg.add_reaction(emoji)
         except discord.Forbidden:
             print("Cannot add reactions: missing Add Reactions permission.")
         except discord.HTTPException as e:
