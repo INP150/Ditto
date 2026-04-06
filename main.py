@@ -26,7 +26,7 @@ async def on_ready() -> None:
 @bot.event
 async def on_message(msg) -> None:
     """Checks all messages from users and add reactions if the text inlcudes defined words"""
-    if msg.author.bot: # ignore messages from bots (including self) 
+    if msg.author == bot.user: 
         return
 
     parts = gather_message_parts(msg)
