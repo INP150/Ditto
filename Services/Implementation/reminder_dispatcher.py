@@ -7,6 +7,7 @@ from Services.Implementation.reminder_service import ReminderService
 from const import MISSING_REMINDER_CHANNEL
 from embed_helpers import build_reminder_content
 from time_helpers import utc_now
+from vote_helpers import build_vote_view, split_vote_emojis
 
 
 class ReminderDispatcher:
@@ -45,5 +46,8 @@ class ReminderDispatcher:
             except discord.HTTPException as error:
                 raise RuntimeError(MISSING_REMINDER_CHANNEL) from error
 
-        await channel.send(**build_reminder_content(reminder))
+        await channel.send(
+            **build_reminder_content(reminder),
+            view=build_vote_view(split_vote_emojis(reminder.vote_emojis)),
+        )
         await self.service.record_fired(reminder, now)

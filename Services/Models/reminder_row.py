@@ -28,6 +28,7 @@ class ReminderRow(Base):
     embed_color: Mapped[int | None] = mapped_column(Integer, nullable=True)
     embed_footer: Mapped[str | None] = mapped_column(String, nullable=True)
     embed_json: Mapped[str | None] = mapped_column(Text, nullable=True)
+    vote_emojis: Mapped[str | None] = mapped_column(String, nullable=True)
     created_at: Mapped[datetime] = mapped_column(UTCDateTime)
     last_updated_at: Mapped[datetime] = mapped_column(UTCDateTime)
 
@@ -48,6 +49,7 @@ class ReminderRow(Base):
             embed_color=reminder.embed_color,
             embed_footer=reminder.embed_footer,
             embed_json=reminder.embed_json,
+            vote_emojis=reminder.vote_emojis,
             created_at=reminder.created_at,
             last_updated_at=reminder.last_updated_at,
         )
@@ -68,6 +70,7 @@ class ReminderRow(Base):
             embed_color=self.embed_color,
             embed_footer=self.embed_footer,
             embed_json=self.embed_json,
+            vote_emojis=self.vote_emojis,
             created_at=self.created_at,
             last_updated_at=self.last_updated_at,
         )

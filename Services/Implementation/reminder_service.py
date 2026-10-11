@@ -30,6 +30,7 @@ class ReminderService:
         embed_color: int | None = None,
         embed_footer: str | None = None,
         embed_json: str | None = None,
+        vote_emojis: str | None = None,
     ) -> Reminder:
         """Store and return a new reminder."""
         now = utc_now()
@@ -48,6 +49,7 @@ class ReminderService:
             embed_color=embed_color,
             embed_footer=embed_footer,
             embed_json=embed_json,
+            vote_emojis=vote_emojis,
         )
         await self.storage.add_reminder(reminder)
         return reminder

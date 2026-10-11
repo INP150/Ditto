@@ -73,7 +73,7 @@ async def init_engine(url: str | None = None) -> AsyncEngine:
         _engine = create_async_engine(resolved)
         _session_factory = async_sessionmaker(_engine, expire_on_commit=False)
 
-    from Services.Models import reminder_row # noqa: F401 - registers the table
+    from Services.Models import reminder_row, vote_row # noqa: F401 - registers the tables
 
     async with _engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

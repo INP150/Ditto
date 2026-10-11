@@ -10,6 +10,7 @@ Universal discord bot
   - can be paused, resumed or postponed to a later date
   - sent as a plain message or as an embed with a title, colour and footer
   - full embeds (author, images, fields) can be built with an embed builder
+  - optional vote buttons (e.g. 👍 👎) under each reminder, counting from 0
 
 ## Commands
 - /ping
@@ -23,6 +24,7 @@ Universal discord bot
   - `repeat_every` with `time_measure` (S/M/H/D) makes it repeat, leaving it out
     sends it once
   - `title`, `color` and `footer` send the reminder as an embed
+  - `votes` adds vote buttons, e.g. `👍 👎` (up to 5, custom server emojis work)
 - /set-reminder, !set-reminder
   - copies the text of a message (including its embeds) into a new reminder in
     the current channel
@@ -52,6 +54,11 @@ Universal discord bot
     before (a paused reminder is resumed)
 - /reminders preview
   - shows how a reminder will look, without affecting its schedule
+- /reminders votes
+  - sets or removes the vote buttons of an existing reminder; the dialogs of
+    /set-reminder and /embed have a **Vote buttons** box too
+  - every message a reminder sends starts at 0; each person has one vote per
+    message, clicking the same button again takes it back, another moves it
 - /reminders delete
   - deletes a reminder
 
@@ -67,7 +74,6 @@ Reminders are kept in SQLite at `data/ditto.db`, created on first start. Point
 `postgresql+asyncpg://user:password@host/ditto`.
 
 ## Planned features
-- Reminders with customizable reactions
 
 # How to Install
 - Clone Ditto repository

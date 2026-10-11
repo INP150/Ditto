@@ -28,6 +28,7 @@ DEFAULT_EMBED_COLOR = 0x5865F2 # Discord blurple
 EMBED_MAX_TOTAL_LENGTH = 6000 # Discord's limit on all the text in one embed
 EMBED_MAX_FIELDS = 25
 EMBED_BUILDER_TIMEOUT_SECONDS = 14 * 60 # an interaction can edit its reply for 15 minutes
+MAX_VOTE_BUTTONS = 5 # one row of buttons under a reminder
 
 # Embed colour names, mirrors the names Discord itself offers for embed colours.
 EMBED_COLOR_NAMES = {

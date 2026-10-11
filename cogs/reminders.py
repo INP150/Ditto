@@ -42,6 +42,7 @@ from embed_helpers import (
     reminder_summary_text,
 )
 from message_helpers import gather_message_parts
+from vote_helpers import VoteButton, build_vote_view, parse_vote_emojis, split_vote_emojis
 from time_helpers import (
     format_duration,
     format_when,
@@ -156,6 +157,12 @@ class SetReminderModal(discord.ui.Modal, title="Set reminder"):
         max_length=256,
         required=False,
     )
+    votes = discord.ui.TextInput(
+        label="Vote buttons",
+        placeholder="e.g. 👍 👎; leave blank for none",
+        max_length=200,
+        required=False,
+    )
 
     def __init__(self, service: ReminderService, channel: ReminderChannel, creator_id: int, text: str = ""):
         super().__init__()
@@ -178,6 +185,11 @@ class SetReminderModal(discord.ui.Modal, title="Set reminder"):
             await interaction.response.send_message(error, ephemeral=True)
             return
 
+        vote_emojis, error = parse_vote_emojis(self.votes.value)
+        if error is not None:
+            await interaction.response.send_message(error, ephemeral=True)
+            return
+
         embed_title = (self.embed_title.value or "").strip()
         reminder = await self.service.create_reminder(
             channel_id=self.channel.id,
@@ -189,6 +201,7 @@ class SetReminderModal(discord.ui.Modal, title="Set reminder"):
             as_embed=bool(embed_title),
             embed_title=embed_title or None,
             embed_color=DEFAULT_EMBED_COLOR if embed_title else None,
+            vote_emojis=vote_emojis,
         )
         await interaction.response.send_message(confirmation(reminder), ephemeral=True)
 
@@ -382,6 +395,12 @@ class EmbedScheduleModal(discord.ui.Modal, title="Schedule embed reminder"):
         max_length=40,
         required=False,
     )
+    votes = discord.ui.TextInput(
+        label="Vote buttons",
+        placeholder="e.g. 👍 👎; leave blank for none",
+        max_length=200,
+        required=False,
+    )
 
     def __init__(self, builder: "EmbedBuilderView"):
         super().__init__()
@@ -399,7 +418,12 @@ class EmbedScheduleModal(discord.ui.Modal, title="Schedule embed reminder"):
             await interaction.response.send_message(error, ephemeral=True)
             return
 
-        reminder = await self.builder.create_reminder(first_at, repeat_seconds)
+        vote_emojis, error = parse_vote_emojis(self.votes.value)
+        if error is not None:
+            await interaction.response.send_message(error, ephemeral=True)
+            return
+
+        reminder = await self.builder.create_reminder(first_at, repeat_seconds, vote_emojis)
         await self.builder.close(interaction, confirmation(reminder))
 
 
@@ -469,7 +493,7 @@ class EmbedBuilderView(discord.ui.View):
         self.content = content
         await interaction.response.edit_message(**self.message_kwargs())
 
-    async def create_reminder(self, first_at, repeat_seconds: int) -> Reminder:
+    async def create_reminder(self, first_at, repeat_seconds: int, vote_emojis: str | None) -> Reminder:
         """Store the embed as a reminder in the builder's channel."""
         return await self.service.create_reminder(
             channel_id=self.channel.id,
@@ -483,6 +507,7 @@ class EmbedBuilderView(discord.ui.View):
             embed_color=self.embed.colour.value if self.embed.colour is not None else None,
             embed_footer=self.embed.footer.text,
             embed_json=json.dumps(self.embed.to_dict()),
+            vote_emojis=vote_emojis,
         )
 
     async def close(self, interaction: discord.Interaction, text: str) -> None:
@@ -541,10 +566,13 @@ class Reminders(commands.Cog):
 
     def cog_load(self) -> None:
         """Start the delivery loop once the cog is loaded."""
+        # Vote buttons on reminders sent before a restart keep working through this.
+        self.bot.add_dynamic_items(VoteButton)
         self.send_reminders.start()
 
     def cog_unload(self) -> None:
         """Stop the delivery loop when the cog is unloaded."""
+        self.bot.remove_dynamic_items(VoteButton)
         self.send_reminders.cancel()
 
     @tasks.loop(minutes=1)
@@ -696,6 +724,7 @@ class Reminders(commands.Cog):
         title="Embed title, sends the reminder as an embed",
         color="Embed colour, e.g. blurple, red or #5865F2",
         footer="Embed footer text",
+        votes="Vote buttons under the reminder, e.g. 👍 👎",
     )
     async def new(
         self,
@@ -708,6 +737,7 @@ class Reminders(commands.Cog):
         title: str | None = None,
         color: str | None = None,
         footer: str | None = None,
+        votes: str | None = None,
     ) -> None:
         """Create a reminder in this channel or another channel of this server."""
         target = channel or interaction.channel
@@ -731,6 +761,11 @@ class Reminders(commands.Cog):
             await interaction.response.send_message(INVALID_EMBED_COLOR, ephemeral=True)
             return
 
+        vote_emojis, error = parse_vote_emojis(votes)
+        if error is not None:
+            await interaction.response.send_message(error, ephemeral=True)
+            return
+
         as_embed = bool(title) or parsed_color is not None or bool(footer)
         reminder = await self.service.create_reminder(
             channel_id=target.id,
@@ -743,6 +778,7 @@ class Reminders(commands.Cog):
             embed_title=title,
             embed_color=parsed_color if as_embed else None,
             embed_footer=footer,
+            vote_emojis=vote_emojis,
         )
         await interaction.response.send_message(confirmation(reminder), ephemeral=True)
 
@@ -874,7 +910,37 @@ class Reminders(commands.Cog):
             await interaction.response.send_message(error, ephemeral=True)
             return
 
-        await interaction.response.send_message(**build_reminder_content(reminder), ephemeral=True)
+        await interaction.response.send_message(
+            **build_reminder_content(reminder),
+            view=build_vote_view(split_vote_emojis(reminder.vote_emojis), disabled=True),
+            ephemeral=True,
+        )
+
+    @reminders_group.command(name="votes", description="Set or remove the vote buttons of a reminder")
+    @app_commands.describe(
+        reminder_id="The reminder, from /reminders list",
+        emojis="Vote buttons, e.g. 👍 👎; leave out to remove them",
+    )
+    @app_commands.autocomplete(reminder_id=reminder_id_autocomplete)
+    async def votes(self, interaction: discord.Interaction, reminder_id: int, emojis: str | None = None) -> None:
+        """Change the vote buttons sent with a reminder from now on."""
+        reminder, error = await self.get_manageable_reminder(interaction, reminder_id)
+        if error is not None:
+            await interaction.response.send_message(error, ephemeral=True)
+            return
+
+        vote_emojis, error = parse_vote_emojis(emojis)
+        if error is not None:
+            await interaction.response.send_message(error, ephemeral=True)
+            return
+
+        reminder.vote_emojis = vote_emojis
+        await self.service.update_reminder(reminder)
+        if vote_emojis:
+            text = f"Reminder #{reminder.id} will be sent with the vote buttons {vote_emojis}."
+        else:
+            text = f"Reminder #{reminder.id} will be sent without vote buttons."
+        await interaction.response.send_message(text, ephemeral=True)
 
     @app_commands.command(name="embed", description="Build an embed and schedule it as a reminder")
     @app_commands.describe(

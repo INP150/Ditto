@@ -78,7 +78,7 @@ class SqlReminderStorage(ReminderStorage):
             for column in (
                 "guild_id", "channel_id", "creator_id", "message", "next_reminder_at",
                 "repeat_every_seconds", "is_active", "as_embed", "embed_title",
-                "embed_color", "embed_footer", "embed_json", "created_at", "last_updated_at",
+                "embed_color", "embed_footer", "embed_json", "vote_emojis", "created_at", "last_updated_at",
             )
         }
         async with session_scope() as session:

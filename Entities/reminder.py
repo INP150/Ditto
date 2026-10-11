@@ -18,6 +18,7 @@ class ReminderJson(TypedDict):
     embed_color: int | None
     embed_footer: str | None
     embed_json: str | None
+    vote_emojis: str | None
     created_at: str
     last_updated_at: str
 
@@ -49,6 +50,8 @@ class Reminder:
     # The full embed as Discord JSON, set for embeds made with the embed builder.
     # When present it is sent as is, with `message` posted above it as content.
     embed_json: str | None = None
+    # Space separated emojis shown as vote buttons under every message sent.
+    vote_emojis: str | None = None
 
     def reschedule_after(self, now: datetime) -> None:
         """Move to the next occurrence after `now`, or stop firing once it is done.
@@ -99,6 +102,7 @@ class ReminderCodec:
             "embed_color": r.embed_color,
             "embed_footer": r.embed_footer,
             "embed_json": r.embed_json,
+            "vote_emojis": r.vote_emojis,
         }
 
     @staticmethod
@@ -119,4 +123,5 @@ class ReminderCodec:
             embed_color=d.get("embed_color"),
             embed_footer=d.get("embed_footer"),
             embed_json=d.get("embed_json"),
+            vote_emojis=d.get("vote_emojis"),
         )
