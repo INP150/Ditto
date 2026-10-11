@@ -81,7 +81,7 @@ def add_reactions_to_message(msg, emojis):
     """Add a list of emojis as reactions to a message."""
     for emoji in emojis:
         try:
-            await msg.add_reaction(emoji)
+            msg.add_reaction(emoji)
         except discord.Forbidden:
             print("Cannot add reactions: missing Add Reactions permission.")
         except discord.HTTPException as e:
