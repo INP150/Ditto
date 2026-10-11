@@ -1,7 +1,12 @@
 def gather_message_parts(msg):
     """Gather all relevant text parts from the message content and embeds for reaction checking."""
     parts = [msg.content or ""]
-    for embed in msg.embeds:
+    embeds = list(msg.embeds)
+    # A forwarded message has no content or embeds of its own; they live in its snapshots.
+    for snapshot in getattr(msg, "message_snapshots", None) or []:
+        parts.append(snapshot.content or "")
+        embeds.extend(snapshot.embeds)
+    for embed in embeds:
         parts.extend(get_title_parts(embed))
         parts.extend(get_description_parts(embed))
         parts.extend(get_footer_parts(embed))

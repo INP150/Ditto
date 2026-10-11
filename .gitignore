@@ -1,7 +1,11 @@
 .env
 
 venv/*
+.venv/*
 __pycache__
+
+# Local SQLite database for reminders
+data/*
 
 start
 stop
@@ -9,3 +13,8 @@ restart
 update
 
 log/*
+# uv project files, kept local only
+pyproject.toml
+uv.lock
+.python-version
+src/

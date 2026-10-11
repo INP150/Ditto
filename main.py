@@ -2,11 +2,11 @@ import os
 import discord
 import subprocess
 from discord.ext import commands
-from discord import app_commands
-from dotenv import load_dotenv 
+from dotenv import load_dotenv
 
-from const import EMOJI_MAP
+from const import *
 from message_helpers import gather_message_parts
+from Services.database import init_engine
 
 load_dotenv()
 TOKEN = os.getenv("DISCORD_TOKEN")
@@ -17,8 +17,13 @@ intents.message_content = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 @bot.event
-async def on_ready() -> None:
-    """Booting the bot"""
+async def setup_hook():
+    """Prepare the database and load the cogs before connecting."""
+    await init_engine()
+    await bot.load_extension("cogs.reminders")
+
+@bot.event
+async def on_ready():
     await bot.tree.sync()
     print(f"{bot.user} is online!")
 
@@ -72,7 +77,7 @@ def get_latest_commit_hash() -> str:
     return subprocess.check_output(['git', 'rev-parse', '--short', 'HEAD']).decode('ascii').strip()
 
 
-async def add_reactions_to_message(msg, emojis) -> None:
+def add_reactions_to_message(msg, emojis):
     """Add a list of emojis as reactions to a message."""
     for emoji in emojis:
         try:
@@ -83,7 +88,6 @@ async def add_reactions_to_message(msg, emojis) -> None:
             print("Failed to add reaction:", e)
         except Exception as e:
             print("Unexpected error while adding reactions:", e)
-
 
 if __name__ == "__main__":
     bot.run(TOKEN)
