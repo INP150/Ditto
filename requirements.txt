@@ -1,4 +1,6 @@
-aiosqlite==0.22.1
-discord.py==2.7.1
-python-dotenv==1.2.3
-SQLAlchemy[asyncio]==2.1.2
+# Ranges rather than exact pins, so older Pythons (e.g. a Raspberry Pi) get the
+# newest release that supports them. The code needs Python 3.10 or newer.
+aiosqlite>=0.20
+discord.py>=2.5 # message_snapshots, for reading forwarded messages
+python-dotenv>=1.0
+SQLAlchemy[asyncio]>=2.0,<2.2

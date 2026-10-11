@@ -75,7 +75,7 @@ Reminders are kept in SQLite at `data/ditto.db`, created on first start. Point
 git clone <repository>
 ```
 - Create .env file containing bots 'DISCORD_TOKEN'
-- Download packages needed
+- Download packages needed (needs Python 3.10 or newer)
 ```bash
 python -m venv .venv
 .venv/bin/pip install -r requirements.txt
