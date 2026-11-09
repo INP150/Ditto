@@ -3,9 +3,11 @@
 import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 
-from sqlalchemy import Connection, DateTime, TypeDecorator, inspect, text
+from sqlalchemy import (
+    Connection, DateTime, MetaData, Table, TypeDecorator, insert, inspect, literal, select, text,
+)
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -78,8 +80,30 @@ async def init_engine(url: str | None = None) -> AsyncEngine:
     async with _engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
         await conn.run_sync(add_missing_columns)
+        await conn.run_sync(migrate_single_votes)
 
     return _engine
+
+
+def migrate_single_votes(conn: Connection) -> None:
+    """Move votes from the old table, which allowed one emoji per person, to reminder_reactions.
+
+    Runs inside the same transaction as create_all, so the new table is still
+    empty and the old one is dropped only once its rows are copied.
+    """
+    if not inspect(conn).has_table("reminder_votes"):
+        return
+
+    old = Table("reminder_votes", MetaData(), autoload_with=conn)
+    new = Base.metadata.tables["reminder_reactions"]
+    now = literal(datetime.now(timezone.utc), UTCDateTime())
+    conn.execute(
+        insert(new).from_select(
+            ["message_id", "user_id", "emoji", "voted_at"],
+            select(old.c.message_id, old.c.user_id, old.c.emoji, now),
+        )
+    )
+    old.drop(conn)
 
 
 def add_missing_columns(conn: Connection) -> None:

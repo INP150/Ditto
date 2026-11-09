@@ -1,7 +1,10 @@
-"""Vote buttons sent under reminders.
+"""Reaction buttons sent under reminders.
 
-Reactions cannot start at zero, since the bot's own reaction always counts, so
-reminders get buttons that show how many people picked each emoji instead.
+Discord reactions cannot start at zero, since the bot's own reaction always
+counts, so reminders get buttons that work like reactions instead: each starts
+at 0, a person can pick several emojis, and clicking one again takes it back.
+Once someone reacts, a small embed under the message lists who reacted with
+which emoji and the total.
 """
 
 import re
@@ -15,6 +18,16 @@ VOTE_CUSTOM_ID_PREFIX = "ditto:vote:"
 
 # A custom server emoji as Discord writes it, e.g. <:name:123> or <a:name:123>.
 CUSTOM_EMOJI_RE = re.compile(r"<a?:\w{2,32}:\d{15,20}>")
+
+# Marks the embed that lists who reacted, so a click replaces it instead of
+# adding another. Discord keeps an embed's URL but shows it only with a title,
+# and this embed has none.
+VOTERS_EMBED_URL = "https://ditto.invalid/reactions"
+VOTERS_EMBED_COLOR = 0x2B2D31  # Discord's dark message background, to keep it quiet
+MAX_NAMES_PER_EMOJI = 20
+# Discord's limits on a message's embeds.
+MAX_EMBEDS = 10
+MAX_EMBEDS_TOTAL_LENGTH = 6000
 
 votes = SqlVoteStorage()
 
@@ -46,7 +59,7 @@ def split_vote_emojis(stored: str | None) -> list[str]:
 
 
 class VoteButton(discord.ui.DynamicItem[discord.ui.Button], template=r"ditto:vote:(?P<emoji>.+)"):
-    """A button that counts votes for one emoji.
+    """A button that toggles one person's reaction with one emoji.
 
     Being a dynamic item, it keeps working on messages sent before a restart:
     everything it needs is in its custom ID and the database.
@@ -72,10 +85,15 @@ class VoteButton(discord.ui.DynamicItem[discord.ui.Button], template=r"ditto:vot
         return cls(match["emoji"])
 
     async def callback(self, interaction: discord.Interaction) -> None:
-        """Record the vote and update the counts on the message."""
-        counts = await votes.toggle_vote(interaction.message.id, interaction.user.id, self.emoji)
-        emojis = emojis_on_message(interaction.message)
-        await interaction.response.edit_message(view=build_vote_view(emojis, counts))
+        """Record the reaction and update the counts and the list of who reacted."""
+        message = interaction.message
+        voters = await votes.toggle_vote(message.id, interaction.user.id, self.emoji)
+        emojis = emojis_on_message(message)
+        counts = {emoji: len(users) for emoji, users in voters.items()}
+        await interaction.response.edit_message(
+            embeds=embeds_with_voters(message, emojis, voters),
+            view=build_vote_view(emojis, counts),
+        )
 
 
 def emojis_on_message(message: discord.Message) -> list[str]:
@@ -87,6 +105,51 @@ def emojis_on_message(message: discord.Message) -> list[str]:
             if custom_id.startswith(VOTE_CUSTOM_ID_PREFIX):
                 emojis.append(custom_id.removeprefix(VOTE_CUSTOM_ID_PREFIX))
     return emojis
+
+
+def build_voters_embed(emojis: list[str], voters: dict[str, list[int]]) -> discord.Embed | None:
+    """An embed listing who reacted with each emoji, or None when nobody has.
+
+    Mentions in embeds do not ping, so people are shown by mention, which
+    Discord displays as their name in the server.
+    """
+    lines = []
+    for emoji in emojis:
+        users = voters.get(emoji, [])
+        if not users:
+            continue
+        names = ", ".join(f"<@{user}>" for user in users[:MAX_NAMES_PER_EMOJI])
+        if len(users) > MAX_NAMES_PER_EMOJI:
+            names += f" +{len(users) - MAX_NAMES_PER_EMOJI} more"
+        lines.append(f"{emoji} **{len(users)}** · {names}")
+    if not lines:
+        return None
+
+    total = sum(len(voters.get(emoji, [])) for emoji in emojis)
+    people = len({user for emoji in emojis for user in voters.get(emoji, [])})
+    footer = f"{total} reaction{'s' if total != 1 else ''}"
+    if people != total:
+        footer += f" from {people} {'person' if people == 1 else 'people'}"
+
+    embed = discord.Embed(description="\n".join(lines), color=VOTERS_EMBED_COLOR, url=VOTERS_EMBED_URL)
+    embed.set_footer(text=footer)
+    return embed
+
+
+def embeds_with_voters(
+    message: discord.Message, emojis: list[str], voters: dict[str, list[int]]
+) -> list[discord.Embed]:
+    """The message's own embeds, followed by an up to date list of who reacted.
+
+    Link previews are left out, since Discord makes those itself from the
+    message text. The list is skipped when it would break Discord's limits.
+    """
+    embeds = [embed for embed in message.embeds if embed.type == "rich" and embed.url != VOTERS_EMBED_URL]
+    summary = build_voters_embed(emojis, voters)
+    if summary is not None and len(embeds) < MAX_EMBEDS:
+        if sum(len(embed) for embed in embeds) + len(summary) <= MAX_EMBEDS_TOTAL_LENGTH:
+            embeds.append(summary)
+    return embeds
 
 
 def build_vote_view(

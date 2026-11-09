@@ -10,7 +10,8 @@ Universal discord bot
   - can be paused, resumed or postponed to a later date
   - sent as a plain message or as an embed with a title, colour and footer
   - full embeds (author, images, fields) can be built with an embed builder
-  - optional vote buttons (e.g. 👍 👎) under each reminder, counting from 0
+  - optional reaction buttons (e.g. 👍 👎) under each reminder, counting from 0,
+    with a list of who reacted with what
 
 ## Commands
 - /ping
@@ -57,8 +58,10 @@ Universal discord bot
 - /reminders votes
   - sets or removes the vote buttons of an existing reminder; the dialogs of
     /set-reminder and /embed have a **Vote buttons** box too
-  - every message a reminder sends starts at 0; each person has one vote per
-    message, clicking the same button again takes it back, another moves it
+  - every message a reminder sends starts at 0; like Discord reactions, each
+    person can react with several emojis, and clicking one again takes it back
+  - once someone reacts, a small embed under the message lists who reacted
+    with each emoji and the total number of reactions
 - /reminders delete
   - deletes a reminder
 
